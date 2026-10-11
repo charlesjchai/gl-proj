@@ -2,16 +2,28 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 
+#ifdef NDEBUG // C++ commitee fail
+#undef NDEBUG
+#include <cassert>
+#define NDEBUG
+#else
+#include <cassert>
+#endif
+
 #define SCR_WIDTH 800
 #define SCR_HEIGHT 600
 
 // Deals with errors
-void glfw_err_callback(int err_code, const char* err_desc);
+static void glfwErrCallback(int err_code, const char* err_desc);
 // Viewports the window when resized
-void glfw_resize_callback(GLFWwindow* window, int width, int height);
+static void glfwResizeCallback(GLFWwindow* window, int width, int height);
+// Shader garbage
+static unsigned int compileShader(unsigned int shaderType, const char* source);
+static unsigned int createShader(const char* vertexShaderSrc,
+                                 const char* fragmentShaderSrc);
 
 int main() {
-    glfwSetErrorCallback(glfw_err_callback);
+    glfwSetErrorCallback(glfwErrCallback);
     if (!glfwInit()) {
         const char* description;
         int code = glfwGetError(&description);
@@ -37,59 +49,51 @@ int main() {
     }
     glfwMakeContextCurrent(window);
     if (!gladLoadGL(glfwGetProcAddress)) {
-        std::cout << "Failed to initialize GLAD" << std::endl;
+        std::cerr << "Failed to initialize GLAD\n";
         return -1;
     }
+    // Apple lovers with their retina displays
+    int frameBufferWidth, frameBufferHeight;
+    glfwGetFramebufferSize(window, &frameBufferWidth, &frameBufferHeight);
     // Maps (-1, 1) to the screen size
-    glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
-    glfwSetFramebufferSizeCallback(window, glfw_resize_callback);
+    glViewport(0, 0, frameBufferWidth, frameBufferHeight);
+    glfwSetFramebufferSizeCallback(window, glfwResizeCallback);
 
-    const char* vertex_shader_code =
+    constexpr char vertexShaderCode[] =
         R"(#version 330 core
 layout (location = 0) in vec3 aPos;
 
 void main() {
     gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0f);
 })";
-    const char* frag_shader_code = R"(#version 330 core
+    constexpr char fragmentShaderCode[] = R"(#version 330 core
 out vec4 FragColor;
 
 void main() {
     FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);
 })";
-    unsigned int vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    unsigned int fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(vertex_shader, 1, &vertex_shader_code, nullptr);
-    glCompileShader(vertex_shader);
-    glShaderSource(fragment_shader, 1, &frag_shader_code, nullptr);
-    glCompileShader(fragment_shader);
-    unsigned int shader_program = glCreateProgram();
-    glAttachShader(shader_program, vertex_shader);
-    glAttachShader(shader_program, fragment_shader);
-    glLinkProgram(shader_program);
-    glDeleteShader(vertex_shader);
-    glDeleteShader(fragment_shader);
+    unsigned int shaderProgram =
+        createShader(vertexShaderCode, fragmentShaderCode);
 
-    float vertices[] = {-0.5f, -0.5f, 0.0f, 0.5f, -0.5f,
-                        0.0f,  0.0f,  0.5f, 0.0f};
-    unsigned int vertex_buf, vertex_arr;
-    glGenVertexArrays(1, &vertex_arr);
-    glGenBuffers(1, &vertex_buf);
-    glBindVertexArray(vertex_arr);
-    glBindBuffer(GL_ARRAY_BUFFER, vertex_buf);
+    float vertices[] = {-0.5f, -0.5f, 0.5f, -0.5f, 0.0f, 0.5f};
+    unsigned int vertexBuffer, vertexArray;
+    glGenVertexArrays(1, &vertexArray);
+    glGenBuffers(1, &vertexBuffer);
+    glBindVertexArray(vertexArray);
+    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
     /* GL_STREAM_DRAW: the data is set only once and used by the GPU at most a
        few times. GL_STATIC_DRAW: the data is set only once and used many times.
        GL_DYNAMIC_DRAW: the data is changed a lot and used many times. */
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), nullptr);
     glEnableVertexAttribArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
     while (!glfwWindowShouldClose(window)) {
         glClear(GL_COLOR_BUFFER_BIT);
-        glUseProgram(shader_program);
-        glBindVertexArray(vertex_arr);
+        glUseProgram(shaderProgram);
+        glBindVertexArray(vertexArray);
         glDrawArrays(GL_TRIANGLES, 0, 3);
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -99,10 +103,46 @@ void main() {
     return 0;
 }
 
-void glfw_err_callback(int err_code, const char* err_desc) {
+static void glfwErrCallback(int err_code, const char* err_desc) {
     std::cerr << "GLFW Error (" << err_code << "): " << err_desc << '\n';
 }
-void glfw_resize_callback(GLFWwindow* window, int width, int height) {
+static void glfwResizeCallback(GLFWwindow* window, int width, int height) {
     (void)window;
     glViewport(0, 0, width, height);
+}
+static unsigned int compileShader(unsigned int shaderType, const char* source) {
+    unsigned int shaderId = glCreateShader(shaderType);
+    glShaderSource(shaderId, 1, &source, nullptr);
+    glCompileShader(shaderId);
+    int result;
+    glGetShaderiv(shaderId, GL_COMPILE_STATUS, &result);
+    if (!result) {
+        int logLength;
+        glGetShaderiv(shaderId, GL_INFO_LOG_LENGTH, &logLength);
+        std::vector<char> infoLog(logLength);
+        glGetShaderInfoLog(shaderId, logLength, &logLength, infoLog.data());
+        std::cerr << "You "
+                  << (shaderType == GL_VERTEX_SHADER ? "vertex" : "fragment")
+                  << "! Why: " << infoLog.data() << '\n';
+        glDeleteShader(shaderId);
+        return 0;
+    }
+    return shaderId;
+}
+static unsigned int createShader(const char* vertexShaderSrc,
+                                 const char* fragmentShaderSrc) {
+    unsigned int program = glCreateProgram();
+    unsigned int vertexShader =
+        compileShader(GL_VERTEX_SHADER, vertexShaderSrc);
+    unsigned int fragmentShader =
+        compileShader(GL_FRAGMENT_SHADER, fragmentShaderSrc);
+    assert(vertexShader);
+    assert(fragmentShader);
+    glAttachShader(program, vertexShader);
+    glAttachShader(program, fragmentShader);
+    glLinkProgram(program);
+    glValidateProgram(program);
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
+    return program;
 }
