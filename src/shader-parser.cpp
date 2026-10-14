@@ -15,7 +15,7 @@ using std::unordered_map;
 
 optional<unordered_map<string, string>> parseShader(string_view filename) {
     // VEXING PARSE
-    auto file = ifstream(string(filename));
+    ifstream file{string(filename)};
     if (!file.is_open()) {
         return std::nullopt;
     }
@@ -24,14 +24,14 @@ optional<unordered_map<string, string>> parseShader(string_view filename) {
     string currentShaderContents;
     string line;
     while (std::getline(file, line)) {
-        constexpr string_view delimiter = "/* SHADER ";
+        constexpr string_view delimiter{"/* SHADER "};
         if (line.starts_with(delimiter)) {
             if (!currentShaderName.empty()) {
                 shaderMap.insert({currentShaderName, currentShaderContents});
             }
-            size_t startIndex = delimiter.size(), endIndex = startIndex;
+            size_t startIndex{delimiter.size()}, endIndex{startIndex};
             for (; endIndex < line.size(); endIndex++) {
-                char ch = line[endIndex];
+                char ch{line[endIndex]};
                 if (ch == ' ' || ch == '*') {
                     break;
                 }

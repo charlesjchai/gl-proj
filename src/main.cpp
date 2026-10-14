@@ -22,15 +22,14 @@ static void glfwErrCallback(int err_code, const char* err_desc);
 // Viewports the window when resized
 static void glfwResizeCallback(GLFWwindow* window, int width, int height);
 // Shader garbage
-static unsigned int compileShader(unsigned int shaderType, std::string_view);
-static unsigned int createShader(std::string_view vertexShaderSrc,
-                                 std::string_view fragmentShaderSrc);
+static unsigned int compileShader(unsigned int shaderType, const char* source);
+static unsigned int createShader(const char* vertexShaderSrc, const char* fragmentShaderSrc);
 
 int main() {
     glfwSetErrorCallback(glfwErrCallback);
     if (!glfwInit()) {
         const char* description;
-        int code = glfwGetError(&description);
+        int code{glfwGetError(&description)};
         printf("GLFW Initialization failed: %s (Code: %d)\n", description,
                code);
         return 1;
@@ -63,14 +62,13 @@ int main() {
     glViewport(0, 0, frameBufferWidth, frameBufferHeight);
     glfwSetFramebufferSizeCallback(window, glfwResizeCallback);
     
-    std::unordered_map shaderMap = parseShader("shaders.glsl").value();
+    std::unordered_map shaderMap{parseShader("shaders.glsl").value()};
     
-    const std::string vertexShaderCode = shaderMap.at("vertex");
-    const std::string fragmentShaderCode = shaderMap.at("fragment");
-    unsigned int shaderProgram =
-        createShader(vertexShaderCode, fragmentShaderCode);
+    const std::string vertexShaderCode{shaderMap.at("vertex")};
+    const std::string fragmentShaderCode{shaderMap.at("fragment")};
+    unsigned int shaderProgram{createShader(vertexShaderCode.c_str(), fragmentShaderCode.c_str())};
 
-    float vertices[] = {-0.5f, -0.5f, 0.5f, -0.5f, 0.0f, 0.5f};
+    float vertices[]{-0.5f, -0.5f, 0.5f, -0.5f, 0.0f, 0.5f};
     unsigned int vertexBuffer, vertexArray;
     glGenVertexArrays(1, &vertexArray);
     glGenBuffers(1, &vertexBuffer);
@@ -102,10 +100,8 @@ static void glfwErrCallback(int err_code, const char* err_desc) {
 static void glfwResizeCallback([[maybe_unused]] GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
 }
-static unsigned int compileShader(unsigned int shaderType,
-                                  std::string_view stringViewSource) {
-    const char* source = stringViewSource.data();
-    unsigned int shaderId = glCreateShader(shaderType);
+static unsigned int compileShader(unsigned int shaderType, const char* source) {
+    unsigned int shaderId{glCreateShader(shaderType)};
     glShaderSource(shaderId, 1, &source, nullptr);
     glCompileShader(shaderId);
     int result;
@@ -123,13 +119,10 @@ static unsigned int compileShader(unsigned int shaderType,
     }
     return shaderId;
 }
-static unsigned int createShader(std::string_view vertexShaderSrc,
-                                 std::string_view fragmentShaderSrc) {
-    unsigned int program = glCreateProgram();
-    unsigned int vertexShader =
-        compileShader(GL_VERTEX_SHADER, vertexShaderSrc);
-    unsigned int fragmentShader =
-        compileShader(GL_FRAGMENT_SHADER, fragmentShaderSrc);
+static unsigned int createShader(const char* vertexShaderSrc, const char* fragmentShaderSrc) {
+    unsigned int program{glCreateProgram()};
+    unsigned int vertexShader{compileShader(GL_VERTEX_SHADER, vertexShaderSrc)};
+    unsigned int fragmentShader{compileShader(GL_FRAGMENT_SHADER, fragmentShaderSrc)};
     assert(vertexShader);
     assert(fragmentShader);
     glAttachShader(program, vertexShader);
