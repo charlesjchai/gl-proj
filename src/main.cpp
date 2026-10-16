@@ -2,28 +2,21 @@
 #include "shader-parser.hpp"
 #include <GLFW/glfw3.h>
 #include <iostream>
-#include <vector>
-#include <string>
 #include <unordered_map>
-
-#ifdef NDEBUG // C++ commitee fail
-#undef NDEBUG
-#include <cassert>
-#define NDEBUG
-#else
-#include <cassert>
-#endif
+#include <vector>
+#include "debugmacros.hpp"
 
 #define SCR_WIDTH 800
 #define SCR_HEIGHT 600
 
-// Deals with errors
+// Deals with GLFW errors
 static void glfwErrCallback(int err_code, const char* err_desc);
 // Viewports the window when resized
 static void glfwResizeCallback(GLFWwindow* window, int width, int height);
 // Shader garbage
-static unsigned int compileShader(unsigned int shaderType, const char* source);
-static unsigned int createShader(const char* vertexShaderSrc, const char* fragmentShaderSrc);
+static GLuint compileShader(GLuint shaderType, const char* source);
+static GLuint createShader(const char* vertexShaderSrc,
+                           const char* fragmentShaderSrc);
 
 int main() {
     glfwSetErrorCallback(glfwErrCallback);
@@ -61,31 +54,40 @@ int main() {
     // Maps (-1, 1) to the screen size
     glViewport(0, 0, frameBufferWidth, frameBufferHeight);
     glfwSetFramebufferSizeCallback(window, glfwResizeCallback);
-    
-    std::unordered_map shaderMap{parseShader("shaders.glsl").value()};
-    
-    const std::string vertexShaderCode{shaderMap.at("vertex")};
-    const std::string fragmentShaderCode{shaderMap.at("fragment")};
-    unsigned int shaderProgram{createShader(vertexShaderCode.c_str(), fragmentShaderCode.c_str())};
-
-    float vertices[]{-0.5f, -0.5f, 0.5f, -0.5f, 0.0f, 0.5f};
-    unsigned int vertexBuffer, vertexArray;
+    // clang-format off
+    GLfloat vertices[]{
+	-0.5f, -0.5f, 
+       	 0.5f, -0.5f,
+	-0.5f,  0.5f,
+         0.5f,  0.5f,
+    };
+    GLuint indices[]{
+	0, 1, 2,
+	1, 2, 3,
+    };
+    // clang-format on
+    GLuint vertexBuffer, vertexArray, indexBuffer;
     glGenVertexArrays(1, &vertexArray);
     glGenBuffers(1, &vertexBuffer);
+    glGenBuffers(1, &indexBuffer);
     glBindVertexArray(vertexArray);
     glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
     /* GL_STREAM_DRAW: the data is set only once and used by the GPU at most a
        few times. GL_STATIC_DRAW: the data is set only once and used many times.
        GL_DYNAMIC_DRAW: the data is changed a lot and used many times. */
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), nullptr);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices,
+                 GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glUseProgram(shaderProgram);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(GLfloat),
+                          nullptr);
+    std::unordered_map shaderMap{parseShader("shaders.glsl").value()};
+    glUseProgram(createShader(shaderMap.at("vertex").c_str(), shaderMap.at("fragment").c_str()));
 
     while (!glfwWindowShouldClose(window)) {
-        glClear(GL_COLOR_BUFFER_BIT);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        GL_CALL(glClear(GL_COLOR_BUFFER_BIT));
+        GL_CALL(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr));
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
@@ -97,38 +99,42 @@ int main() {
 static void glfwErrCallback(int err_code, const char* err_desc) {
     std::cerr << "GLFW Error (" << err_code << "): " << err_desc << '\n';
 }
-static void glfwResizeCallback([[maybe_unused]] GLFWwindow* window, int width, int height) {
+static void glfwResizeCallback([[maybe_unused]] GLFWwindow* window, int width,
+                               int height) {
     glViewport(0, 0, width, height);
 }
-static unsigned int compileShader(unsigned int shaderType, const char* source) {
-    unsigned int shaderId{glCreateShader(shaderType)};
+
+static GLuint compileShader(GLenum shaderType, const char* source) {
+    GLuint shaderId{glCreateShader(shaderType)};
     glShaderSource(shaderId, 1, &source, nullptr);
     glCompileShader(shaderId);
-    int result;
+    GLint result;
     glGetShaderiv(shaderId, GL_COMPILE_STATUS, &result);
     if (!result) {
-        int logLength;
+        GLint logLength;
         glGetShaderiv(shaderId, GL_INFO_LOG_LENGTH, &logLength);
-        std::vector<char> infoLog(logLength);
+        std::vector<GLchar> infoLog(logLength);
         glGetShaderInfoLog(shaderId, logLength, &logLength, infoLog.data());
-        std::cerr << "You "
+        std::cerr << "You little "
                   << (shaderType == GL_VERTEX_SHADER ? "vertex" : "fragment")
-                  << "! Why: " << infoLog.data() << '\n';
+                  << "! WHY?: " << infoLog.data() << '\n';
         glDeleteShader(shaderId);
         return 0;
     }
     return shaderId;
 }
-static unsigned int createShader(const char* vertexShaderSrc, const char* fragmentShaderSrc) {
-    unsigned int program{glCreateProgram()};
-    unsigned int vertexShader{compileShader(GL_VERTEX_SHADER, vertexShaderSrc)};
-    unsigned int fragmentShader{compileShader(GL_FRAGMENT_SHADER, fragmentShaderSrc)};
-    assert(vertexShader);
-    assert(fragmentShader);
+static GLuint createShader(const char* vertexShaderSrc,
+                           const char* fragmentShaderSrc) {
+    GL_CALL(GLuint program{glCreateProgram()});
+    GLuint vertexShader{compileShader(GL_VERTEX_SHADER, vertexShaderSrc)};
+    GLuint fragmentShader{compileShader(GL_FRAGMENT_SHADER, fragmentShaderSrc)};
+    RELASSERT(program);
+    RELASSERT(vertexShader);
+    RELASSERT(fragmentShader);
     glAttachShader(program, vertexShader);
     glAttachShader(program, fragmentShader);
     glLinkProgram(program);
-    glValidateProgram(program);
+    // glValidateProgram(program); "unnecessary overhead"
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
     return program;
