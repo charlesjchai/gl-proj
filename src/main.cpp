@@ -83,7 +83,7 @@ int main() {
     GL_CALL(glEnableVertexAttribArray(0));
     GL_CALL(glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(GLfloat),
                                   nullptr));
-    std::unordered_map shaderMap{parsdeShader("shaders.glsl").value()};
+    std::unordered_map shaderMap{parseShader("shaders.glsl").value()};
     GLuint program = createShader(shaderMap.at("vertex").c_str(),
                                   shaderMap.at("fragment").c_str());
     GL_CALL(glUseProgram(program));
