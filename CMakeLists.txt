@@ -11,11 +11,14 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(SRC_FILES
   src/glad.c
   src/main.cpp
-  src/shader-parser.cpp
+  src/Renderer.cpp
+  src/VertexBuffer.cpp
+  src/IndexBuffer.cpp
 )
 find_package(OpenGL REQUIRED)
 find_package(glfw3 REQUIRED)
 add_executable(gl-proj ${SRC_FILES})
+configure_file(${CMAKE_SOURCE_DIR}/shaders.glsl ${CMAKE_BINARY_DIR}/shaders.glsl COPYONLY)
 
 target_include_directories(gl-proj PRIVATE include)
 target_link_libraries(gl-proj PRIVATE OpenGL::GL glfw)

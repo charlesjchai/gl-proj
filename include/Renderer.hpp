@@ -1,3 +1,9 @@
+#pragma once
+#include <optional>
+#include <string>
+#include <string_view>
+#include <unordered_map>
+
 // C++ commitee fail
 #define RELASSERT(expr)                                                        \
     do {                                                                       \
@@ -28,3 +34,8 @@
 #else
 #define GL_CALL(x) RELGL_CALL(x)
 #endif
+
+// Makes a hashmap based on delimiting comments (e.g. "/* SHADER vertex */")
+// creates a key "vertex" and a value of its contents.
+std::optional<std::unordered_map<std::string, std::string>>
+parseShader(std::string_view filename);

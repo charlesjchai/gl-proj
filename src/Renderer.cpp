@@ -1,5 +1,6 @@
-#include "shader-parser.hpp"
+#include "Renderer.hpp"
 #include <cstddef>
+#include <iostream>
 #include <fstream>
 #include <optional>
 #include <string>
@@ -17,6 +18,7 @@ optional<unordered_map<string, string>> parseShader(string_view filename) {
     // VEXING PARSE
     ifstream file{string(filename)};
     if (!file.is_open()) {
+	std::cerr << "Failed to open file " << filename << '\n';
         return std::nullopt;
     }
     unordered_map<string, string> shaderMap;
