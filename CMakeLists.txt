@@ -13,6 +13,7 @@ set(SRC_FILES
   src/main.cpp
   src/Renderer.cpp
   src/VertexBuffer.cpp
+  src/VertexArray.cpp
   src/IndexBuffer.cpp
 )
 find_package(OpenGL REQUIRED)

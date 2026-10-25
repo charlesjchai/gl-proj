@@ -1,6 +1,8 @@
 #include "glad/gl.h"
 #include "VertexBuffer.hpp"
 #include "IndexBuffer.hpp"
+#include "VertexArray.hpp"
+#include "VertexBufLayout.hpp"
 #include "Renderer.hpp"
 #include <GLFW/glfw3.h>
 #include <iostream>
@@ -67,14 +69,14 @@ int main() {
 	1, 2, 3,
     };
     // clang-format on
-    GLuint vertexArray;
-    GL_CALL(glGenVertexArrays(1, &vertexArray));
-    GL_CALL(glBindVertexArray(vertexArray));
+    VertexArray vertexArray;
+    
 
     VertexBuffer vertexBuffer(vertices, sizeof(vertices));
-    GL_CALL(glEnableVertexAttribArray(0));
-    GL_CALL(glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(GLfloat),
-                                  nullptr));
+    VertexBufLayout vbLayout;
+    vbLayout.push<GLfloat>(2, false);
+    vertexArray.addBuffer(vertexBuffer, vbLayout);    
+    vertexArray.bind();
     IndexBuffer indexBuffer(indices, sizeof(indices) / sizeof(indices[0]));
         
     std::unordered_map shaderMap{parseShader("shaders.glsl").value()};
