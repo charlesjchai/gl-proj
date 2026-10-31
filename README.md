@@ -41,3 +41,7 @@ error: recursion limit reached while expanding `yaml!`
 error: aborting due to 1 previous error
 ```
 CRAB!
+
+PS:
+This regex matches many OpenGL functions
+gl(Bind|Gen|Disable|Enable)?(Vertex|Index|Uniform|Shader)(Arrays?|Element|Attrib)?(Pointer|Buffers?|Vertex|Fragment)?

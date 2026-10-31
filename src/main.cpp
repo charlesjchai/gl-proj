@@ -59,10 +59,10 @@ int main() {
     glfwSetFramebufferSizeCallback(window, glfwResizeCallback);
     // clang-format off
     GLfloat vertices[]{
-	-0.5f, -0.5f, 
-       	 0.5f, -0.5f,
-	-0.5f,  0.5f,
-         0.5f,  0.5f,
+	-0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
+       	 0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
+	-0.5f,  0.5f, 0.0f, 0.0f, 1.0f,
+         0.5f,  0.5f, 1.0f, 1.0f, 0.0f
     };
     GLuint indices[]{
 	0, 1, 2,
@@ -71,10 +71,10 @@ int main() {
     // clang-format on
     VertexArray vertexArray;
     
-
     VertexBuffer vertexBuffer(vertices, sizeof(vertices));
     VertexBufLayout vbLayout;
     vbLayout.push<GLfloat>(2, false);
+    vbLayout.push<GLfloat>(3, false);
     vertexArray.addBuffer(vertexBuffer, vbLayout);    
     vertexArray.bind();
     IndexBuffer indexBuffer(indices, sizeof(indices) / sizeof(indices[0]));
