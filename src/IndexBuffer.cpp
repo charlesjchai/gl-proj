@@ -10,8 +10,14 @@ IndexBuffer::IndexBuffer(const GLuint* data, GLuint count) : vertex_count{count}
        GL_DYNAMIC_DRAW: the data is changed a lot and used many times. */    
     GL_CALL(glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * sizeof(GLuint), data, GL_STATIC_DRAW));
 }
-IndexBuffer::~IndexBuffer() {
+void IndexBuffer::destroy() {
     GL_CALL(glDeleteBuffers(1, &id));
+    destroyed = true;
+}
+IndexBuffer::~IndexBuffer() {
+    if (!destroyed) {
+        destroy();
+    }
 }
 
 void IndexBuffer::bind() const {

@@ -1,28 +1,29 @@
-#include "glad/gl.h"
-#include "VertexBuffer.hpp"
 #include "IndexBuffer.hpp"
+#include "Renderer.hpp"
 #include "VertexArray.hpp"
 #include "VertexBufLayout.hpp"
-#include "Renderer.hpp"
+#include "VertexBuffer.hpp"
+#include "glad/gl.h"
+#include "shaderz.h"
 #include <GLFW/glfw3.h>
 #include <iostream>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
 #define SCR_WIDTH 800
 #define SCR_HEIGHT 600
 
-// Deals with GLFW errors
-static void glfwErrCallback(int err_code, const char* err_desc);
-// Viewports the window when resized
-static void glfwResizeCallback(GLFWwindow* window, int width, int height);
 // Shader garbage
 static GLuint compileShader(GLuint shaderType, const char* source);
 static GLuint createShader(const char* vertexShaderSrc,
                            const char* fragmentShaderSrc);
 
 int main() {
-    glfwSetErrorCallback(glfwErrCallback);
+    glfwSetErrorCallback([](int err_code, const char* err_desc) {
+	// Lambda
+        std::cerr << "GLFW Error (" << err_code << "): " << err_desc << '\n';
+    });
     if (!glfwInit()) {
         const char* description;
         int code{glfwGetError(&description)};
@@ -56,7 +57,9 @@ int main() {
     glfwGetFramebufferSize(window, &frameBufferWidth, &frameBufferHeight);
     // Maps (-1, 1) to the screen size
     glViewport(0, 0, frameBufferWidth, frameBufferHeight);
-    glfwSetFramebufferSizeCallback(window, glfwResizeCallback);
+    glfwSetFramebufferSizeCallback(window, []([[maybe_unused]] GLFWwindow* window, int width, int height){ // Lambda
+	glViewport(0, 0, width, height);
+    });
     // clang-format off
     GLfloat vertices[]{
 	-0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
@@ -70,16 +73,18 @@ int main() {
     };
     // clang-format on
     VertexArray vertexArray;
-    
+
     VertexBuffer vertexBuffer(vertices, sizeof(vertices));
     VertexBufLayout vbLayout;
     vbLayout.push<GLfloat>(2, false);
     vbLayout.push<GLfloat>(3, false);
-    vertexArray.addBuffer(vertexBuffer, vbLayout);    
+    vertexArray.addBuffer(vertexBuffer, vbLayout);
     vertexArray.bind();
     IndexBuffer indexBuffer(indices, sizeof(indices) / sizeof(indices[0]));
-        
-    std::unordered_map shaderMap{parseShader("shaders.glsl").value()};
+
+    std::unordered_map shaderMap{parseShader(std::string_view{reinterpret_cast<const char*>(shaders_glsl), shaders_glsl_len}).value()};
+    std::cerr << shaderMap.at("vertex");
+    std::cerr << shaderMap.at("fragment");    
     GLuint program = createShader(shaderMap.at("vertex").c_str(),
                                   shaderMap.at("fragment").c_str());
 
@@ -91,17 +96,10 @@ int main() {
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
+    indexBuffer.destroy();
     glDeleteProgram(program);
     glfwTerminate();
     return 0;
-}
-
-static void glfwErrCallback(int err_code, const char* err_desc) {
-    std::cerr << "GLFW Error (" << err_code << "): " << err_desc << '\n';
-}
-static void glfwResizeCallback([[maybe_unused]] GLFWwindow* window, int width,
-                               int height) {
-    glViewport(0, 0, width, height);
 }
 
 static GLuint compileShader(GLenum shaderType, const char* source) {
